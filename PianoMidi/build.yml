@@ -1,0 +1,41 @@
+name: Build PianoMidi VST3 (Windows)
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Compilar (Release)
+        run: cmake --build build --config Release --parallel
+
+      - name: Empaquetar
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item -Recurse "build/PianoMidi_artefacts/Release/VST3/PianoMidi.vst3" "dist/PianoMidi.vst3"
+          Compress-Archive -Path "dist/PianoMidi.vst3" -DestinationPath "PianoMidi-VST3-Windows.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PianoMidi-VST3-Windows
+          path: PianoMidi-VST3-Windows.zip
+
+      - name: Publicar release (solo con tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PianoMidi-VST3-Windows.zip
